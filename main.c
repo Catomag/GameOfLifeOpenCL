@@ -10,7 +10,7 @@
 #include <time.h>
 
 
-#define WIDTH 1000
+#define WIDTH 1800
 #define HEIGHT 1000
 #define ITEM_COUNT WIDTH * HEIGHT
 
@@ -48,6 +48,11 @@ const char* source =
 "}\n";
 
 SDL_Window* window;
+
+
+void world_to_screen(float x, float y, float* ret_x, float* ret_y) {
+
+}
 
 
 int main() {
@@ -94,7 +99,6 @@ int main() {
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
 
 	cl_int errcode = 0;
 
@@ -158,7 +162,7 @@ int main() {
 
 	cl_kernel kernel = clCreateKernel(program, "memset", &errcode);
 	size_t global_work_size = ITEM_COUNT;
-	if(errcode != 0) {
+	 if(errcode != 0) {
 		printf("Opencl error, line: %i, code: %i\n", __LINE__, errcode);
 	}
 
@@ -201,7 +205,17 @@ int main() {
 			else if(event.type == SDL_MOUSEBUTTONUP && event.button.button == SDL_BUTTON_LEFT)
 				left_click = 0;
 			else if(event.type == SDL_MOUSEWHEEL) {
-				zoom += event.wheel.y * delta * 10.f;
+				float prev_zoom = zoom;
+				if(event.wheel.y > 0)
+					zoom *= 1.1f;
+				if(event.wheel.y < 0)
+					zoom *= 0.9f;
+
+				SDL_GetMouseState(&mouse_x, &mouse_y);
+				mouse_y = HEIGHT - mouse_y;
+
+				off_x += (((mouse_x) / prev_zoom + off_x) - ((mouse_x) / zoom + off_x));
+				off_y += (((mouse_y) / prev_zoom + off_y) - ((mouse_y) / zoom + off_y));
 			}
 		}
 
@@ -212,10 +226,9 @@ int main() {
 		SDL_GetMouseState(&mouse_x, &mouse_y);
 
 		if(left_click) {
-			off_x -= (mouse_x - mouse_prev_x) * delta * 60;
-			off_y += (mouse_y - mouse_prev_y) * delta * 60;
+			off_x -= (mouse_x - mouse_prev_x) / zoom;
+			off_y += (mouse_y - mouse_prev_y) / zoom;
 		}
-
 
 		mouse_prev_x = mouse_x;
 		mouse_prev_y = mouse_y;
@@ -242,10 +255,9 @@ int main() {
 		clEnqueueWriteBuffer(queue, img_copy_mem, CL_TRUE, 0, WIDTH * HEIGHT * 3, img_copy, 0, NULL, NULL);
 	
 		// do opengl drawing
-		glBlitNamedFramebuffer(fbo, 0, off_x / zoom, off_y / zoom, WIDTH / zoom + off_x / zoom, HEIGHT / zoom + off_y / zoom, 0, 0, WIDTH, HEIGHT, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		glBlitNamedFramebuffer(fbo, 0, off_x, off_y, WIDTH / zoom + off_x, HEIGHT / zoom + off_y, 0, 0, WIDTH, HEIGHT, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
 		SDL_GL_SwapWindow(window);
-		SDL_Delay(10);
 	}
 
 	glDeleteFramebuffers(1, &fbo);
